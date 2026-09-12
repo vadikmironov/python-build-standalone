@@ -752,6 +752,7 @@ def run_msbuild(
     python_version: str,
     windows_sdk_version: str,
     freethreaded: bool,
+    msvc_version: str,
 ):
     args = [
         str(msbuild),
@@ -780,6 +781,18 @@ def run_msbuild(
     # Build tail-calling Python for 3.15+
     if python_version.startswith("3.15") and platform == "x64":
         args.append("/property:UseTailCallInterp=true")
+
+    # PCbuild/python.props maps VisualStudioVersion 18.0 (VS 2026) to v145
+    # only from 3.15; 3.13 and 3.14 map it to v143 and older branches fall
+    # through to v140, MSB8020 either way on the VS 2026 images, which ship
+    # v143 for some targets only (no x86 v143 on arm64, where _freeze_module
+    # builds as Win32). Pin v145, present for every host and target there;
+    # python.props documents the override.
+    # See https://github.com/python/cpython/blob/v3.12.14/PCbuild/python.props#L9
+    if msvc_version == "2026" and python_version.startswith(
+        ("3.10", "3.11", "3.12", "3.13", "3.14")
+    ):
+        args.append("/property:PlatformToolset=v145")
 
     exec_and_log(args, str(pcbuild_path), os.environ)
 
@@ -1558,6 +1571,7 @@ def build_cpython(
                 python_version=python_version,
                 windows_sdk_version=windows_sdk_version,
                 freethreaded=freethreaded,
+                msvc_version=msvc_version,
             )
 
             # build-windows.py sets some environment variables which cause the
@@ -1628,6 +1642,7 @@ def build_cpython(
                 python_version=python_version,
                 windows_sdk_version=windows_sdk_version,
                 freethreaded=freethreaded,
+                msvc_version=msvc_version,
             )
             artifact_config = "PGUpdate"
 
@@ -1640,6 +1655,7 @@ def build_cpython(
                 python_version=python_version,
                 windows_sdk_version=windows_sdk_version,
                 freethreaded=freethreaded,
+                msvc_version=msvc_version,
             )
             artifact_config = "Release"
 
